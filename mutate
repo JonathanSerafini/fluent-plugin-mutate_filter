@@ -1,0 +1,261 @@
+
+require 'thread_safe'
+require 'fluent/plugin/filter'
+require 'fluent/plugin_mixin/mutate_event'
+
+module Fluent
+  module Plugin
+    class MutateFilter < Filter
+      Fluent::Plugin.register_filter('mutate', self)
+
+      # Treat periods as nested field names
+      config_param :expand_nesting, :bool, default: true
+
+      # Rename one or more fields
+      config_param :rename,     :hash, default: Hash.new
+
+      # Update an existing field with a new value
+      config_param :update,     :hash, default: Hash.new
+
+      # Remove an existing field
+      config_param :remove,     :array, default: Array.new
+
+      # Replace a field with a new value
+      config_param :replace,    :hash, default: Hash.new
+
+      # Convert a field's value to a different type
+      config_param :convert,    :hash, default: Hash.new
+
+      # Convert a string field by applying a regular expression and replacement
+      config_param :gsub,       :hash, default: Hash.new
+
+      # Convert a string to it's uppercase equivalent
+      config_param :uppercase,  :array, default: Array.new
+
+      # Convert a string to it's lowercase equivalent
+      config_param :lowercase,  :array, default: Array.new
+
+      # Strip whitespace from field.
+      config_param :strip,      :array, default: Array.new
+
+      # Split a field to an array using a separator character
+      config_param :split,      :hash, default: Hash.new
+
+      # Join an array using a separator character
+      config_param :join,      :hash, default: Hash.new
+
+      # Merge two fields
+      config_param :merge,      :hash, default: Hash.new
+
+      MUTATE_ACTIONS = %w(rename update replace convert gsub uppercase
+                          lowercase strip remove split join merge)
+      VALID_CONVERSIONS = %w(string integer float boolean)
+
+      CACHE = ThreadSafe::Cache.new
+
+      CONVERT_PREFIX = "convert_".freeze
+      TRUE_REGEX = (/^(true|t|yes|y|1)$/i).freeze
+      FALSE_REGEX = (/^(false|f|no|n|0)$/i).freeze
+
+      def configure(conf)
+        super
+
+        @convert.nil? or @convert.each do |field, type|
+          if !VALID_CONVERSIONS.include?(type)
+            raise ConfigError, 
+              "convert #{type} is not one of #{VALID_CONVERSIONS.join(',')}."
+          end
+
+          @gsub_parsed = []
+          @gsub.nil? or 
+          @gsub.each_slice(3) do |field, needle, replacement|
+            if [field, needle, replacement].any? {|n| n.nil?}
+              raise ConfigError,
+                "gsub #{[field,needle,replacement]} requires 3 elements."
+            end
+
+            @gsub_parser << {
+              field: field,
+              needle: (needle.index("%{").nil?? Regexp.new(needle): needle),
+              replacement: replacement
+            }
+          end
+        end
+      end
+
+      def filter(tag, time, record)
+        result = Fluent::PluginMixin::MutateEvent.new(record)
+
+        MUTATE_ACTIONS.each do |action|
+          begin
+            result = send(action.to_sym, result) if send("@#{action}")
+          rescue => e
+            log.warn "failed to mutate #{action} action", error: e
+            log.warn_backtrace
+          end
+        end
+
+        result.prune
+        result.to_record
+      end
+
+      protected
+
+      def rename(event)
+        @rename.each do |old, new|
+          event = event.find_parent(old)
+          old = event.get(old)
+          next if old.nil?
+          event.set(new, old)
+        end
+      end
+
+      def update(event)
+        @update.each do |field, newvalue|
+          next unless event.include?(field)
+          event.set(field, newvalue)
+        end
+      end
+
+      def replace(event)
+        @replace.each do |field, newvalue|
+          event.set(field, newvalue)
+        end
+      end
+
+      def convert(event)
+        @convert.each do |field, type|
+          converter = method(CONVERT_PREFIX + type)
+
+          case original = event.get(field)
+          when NilClass
+            next
+          when Hash
+            @log.error("cannot convert hash", field: field, value: original)
+          when Array
+            event.set(field, original.map{|v| converter.call(v)})
+          else
+            event.set(field, converter.call(original))
+          end
+        end
+      end
+
+      def convert_string(value)
+        value.to_s.force_encoding(Encoding::UTF_8)
+      end
+
+      def convert_integer(value)
+        value.to_i
+      end
+
+      def convert_boolean(value)
+        return true if value =~ TRUE_REGEX
+        return false if value.empty? || value =~ FALSE_REGEX
+        @log.error("failed to convert to boolean", value: value)
+      end
+
+      def uppercase(event)
+        @uppercase.each do |field|
+          original = event.get(field)
+          result = case original
+                   when Array
+                     original.map do |elem|
+                       (elem.is_a?(String) ? elemen.upcase : elem)
+                     end
+                   when String
+                     original.upcase! || original
+                   else
+                     @log.error("can't uppercase field", 
+                                field: field, 
+                                value: original)
+                     original
+                   end
+          event.set(field, result)
+        end
+      end
+
+      def lowercase(event)
+        @lowercase.each do |field|
+          original = event.get(field)
+          result = case original
+                   when Array
+                     original.map do |elem|
+                       (elem.is_a?(String) ? elemen.downcase : elem)
+                     end
+                   when String
+                     original.downcase! || original
+                   else
+                     @log.error("can't lowercase field", 
+                                field: field, 
+                                value: original)
+                     original
+                   end
+          event.set(field, result)
+        end
+      end
+
+      def split(event)
+        @split.each do |field, separator|
+          value = event.get(field)
+          if value.is_a?(String)
+            event.set(field, value.split(separator))
+          else
+            @loger.error("can't split field", 
+                         field: field,
+                         value: value)
+          end
+        end
+      end
+
+      def join(event)
+        @join.each do |field, separator|
+          value = event.get(field)
+          if value.is_a?(Array)
+            event.set(field, value.join(separator))
+          end
+        end
+      end
+
+      def strip(event)
+        @strip.each do |field|
+          value = event.get(field)
+          case value
+          when Array
+            event.set(field, value.map{|s| s.strip})
+          when String
+            event.set(field, name.strip)
+          end
+        end
+      end
+
+      def merge(event)
+        @merge.each do |dest_field, added_fields|
+          dest_field_value = event.get(dest_field)
+
+          Array(added_fields).each do |added_field|
+            added_field_value = event.get(added_field)
+
+            if dest_field_value.is_a?(Hash) ^ added_field_value.is_a?(Hash)
+              @log.error('cannot merge an array and hash',
+                         dest_field: dest_field,
+                         added_field: added_field)
+              next
+            end
+
+            if dest_field_value.is_a?(Hash)
+              event.set(dest_field, dest_field_value.update(added_field_value))
+            else
+              event.set(dest_field, Array(dest_field_value).
+                                    concat(Array(added_field_value)))
+            end
+          end
+        end
+      end
+
+      def gsub(event)
+        # TODO
+      end
+    end
+  end
+end
+
