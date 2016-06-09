@@ -6,7 +6,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["jonathan@serafini.ca"]
   spec.summary       = %q{A mutate filter for Fluent which functions like Logstash.}
   spec.description   = spec.description
-  spec.homepage      = "http://fuck.off"
+  spec.homepage      = "https://github.com/JonathanSerafini/fluent-plugin-mutate_filter"
 
   spec.files         = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
   spec.executables   = []
