@@ -1,7 +1,7 @@
 # coding: utf-8
 Gem::Specification.new do |spec|
   spec.name          = "fluent-plugin-mutate_filter"
-  spec.version       = "0.1.2"
+  spec.version       = "0.2.0"
   spec.authors       = ["Jonathan Serafini"]
   spec.email         = ["jonathan@serafini.ca"]
   spec.summary       = %q{A mutate filter for Fluent which functions like Logstash.}
