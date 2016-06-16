@@ -1,5 +1,9 @@
 # Changelog
 
+v2.0.1
+-------------
+* Resolve bug in datetime converter
+
 v2.0.0
 -------------
 * Fix MutateEvent initializer bug

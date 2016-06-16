@@ -302,7 +302,7 @@ module Fluent
 
     def convert_datetime(value)
       value = convert_integer(value) if value.is_a?(String)
-      Time.at(value).to_datetime
+      Time.at(value).to_datetime.to_s
     end
 
     def convert_boolean(value)
