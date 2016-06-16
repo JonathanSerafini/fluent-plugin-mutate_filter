@@ -67,7 +67,7 @@ module Fluent
     #     "fieldname",  "/", "_",
     #     "fieldname2", "[\\?#-]", "."
     #   ]
-    config_param :gsub,       :hash,  default: Array.new
+    config_param :gsub,       :array, default: Array.new
 
     # Convert a string to it's uppercase equivalent
     # @example
