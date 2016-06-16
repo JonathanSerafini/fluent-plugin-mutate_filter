@@ -4,8 +4,13 @@ module Fluent
       def initialize(record, expand_nesting: true)
         super(record)
         @record = record
+        @event_time = nil
+        @event_tag  = nil
         @expand_nesting = expand_nesting
       end
+
+      attr_accessor :event_time
+      attr_accessor :event_tag
 
       def to_record
         @record
