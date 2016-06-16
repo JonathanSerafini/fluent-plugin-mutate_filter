@@ -129,7 +129,7 @@ module Fluent
     )
 
     # Convert valid types
-    VALID_CONVERSIONS = %w(string integer float boolean)
+    VALID_CONVERSIONS = %w(string integer float boolean datetime)
 
     # Convert helper method prefix
     CONVERT_PREFIX = "convert_".freeze
@@ -292,6 +292,10 @@ module Fluent
 
     def convert_float(value)
       value.to_f
+    end
+
+    def convert_datetime(value)
+      Time.at(value).to_datetime
     end
 
     def convert_boolean(value)
