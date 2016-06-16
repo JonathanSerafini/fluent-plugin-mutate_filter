@@ -179,6 +179,8 @@ module Fluent
       # determines whether we should treat periods as field separators.
       result = Fluent::PluginMixin::MutateEvent.
         new(record, expand_nesting: @expand_nesting)
+      result.event_time = time
+      result.event_tag = tag
 
       MUTATE_ACTIONS.each do |action|
         begin
@@ -206,7 +208,11 @@ module Fluent
 
       matches.each do |match|
         reference_tag = match[0][2..-2]
-        reference_value = event.get(reference_tag.downcase).to_s
+        reference_value = case reference_tag
+                          when "event_time" then event.event_time
+                          when "event_tag"  then event.event_tag
+                          else  event.get(reference_tag.downcase).to_s
+                          end
         if reference_value.nil?
           @log.error "failed to replace tag", field: reference_tag.downcase
           reference_value = match.to_s
