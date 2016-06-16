@@ -1,7 +1,7 @@
 module Fluent
   module PluginMixin
     class MutateEvent < SimpleDelegator
-      def initialize(record, expand_nesting = true)
+      def initialize(record, expand_nesting: true)
         super(record)
         @record = record
         @expand_nesting = expand_nesting
