@@ -1,5 +1,11 @@
 # Changelog
 
+v0.3.0
+-------------
+* Resolve bug in error handling
+* Add support for %e{} tags to replace with environment variables
+* Add support for %e{hostname} tag to replace with hostname
+
 v0.2.1
 -------------
 * Resolve bug in datetime converter

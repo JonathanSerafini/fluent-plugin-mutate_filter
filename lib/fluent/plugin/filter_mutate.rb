@@ -1,3 +1,4 @@
+require 'socket'
 require 'fluent/filter'
 require 'fluent/plugin_mixin/mutate_event'
 
@@ -139,6 +140,9 @@ module Fluent
     FALSE_REGEX = (/^(false|f|no|n|0)$/i).freeze
 
     # Placeholder regex
+    ENVIRONMENT_TAG_REGEXP = /%e\{[^}]+\}/
+
+    # Placeholder regex
     TEMPLATE_TAG_REGEXP = /%\{[^}]+\}/
 
     # Initialize attributes and parameters
@@ -197,6 +201,15 @@ module Fluent
 
     protected
 
+    # Expand replacable patterns on the event
+    # @since 0.3.0
+    # @return [String] the modified string
+    def expand_patterns(event, string)
+      string = expand_references(event, string)
+      string = expand_environment(event, string)
+      string
+    end
+
     # Expand %{} strings to the related event fields.
     # @since 0.1.0
     # @return [String] the modified string
@@ -215,6 +228,39 @@ module Fluent
                           end
         if reference_value.nil?
           @log.error "failed to replace tag", field: reference_tag.downcase
+          reference_value = match.to_s
+        end
+
+        start = match.offset(0).first
+        new_string << string[position..(start-1)] if start > 0
+        new_string << reference_value
+        position = match.offset(0).last
+      end
+
+      if position < string.size
+        new_string << string[position..-1]
+      end
+
+      new_string
+    end
+
+    # Expand %e{} strings to the related environment variables.
+    # @since 0.3.0
+    # @return [String] the modified string
+    def expand_environment(event, string)
+      new_string = ''
+
+      position = 0
+      matches = string.scan(ENVIRONMENT_TAG_REGEXP).map{|m| $~}
+
+      matches.each do |match|
+        reference_tag = match[0][2..-2]
+        reference_value = case reference_tag
+                          when "hostname" then Socket.gethostname
+                          else ENV[reference_tag]
+                          end
+        if reference_value.nil?
+          @log.error "failed to replace tag", field: reference_tag
           reference_value = match.to_s
         end
 
@@ -254,7 +300,7 @@ module Fluent
     # @since 0.1.0
     def update(event)
       @update.each do |field, newvalue|
-        newvalue = expand_references(event, newvalue)
+        newvalue = expand_patterns(event, newvalue)
         next unless event.include?(field)
         event.set(field, newvalue)
       end
@@ -264,7 +310,7 @@ module Fluent
     # @since 0.1.0
     def replace(event)
       @replace.each do |field, newvalue|
-        newvalue = expand_references(event, newvalue)
+        newvalue = expand_patterns(event, newvalue)
         event.set(field, newvalue)
       end
     end
@@ -452,7 +498,7 @@ module Fluent
     end
 
     def gsub_dynamic_fields(event, original, needle, replacement)
-      replacement = expand_references(event, replacement)
+      replacement = expand_patterns(event, replacement)
       if needle.is_a?(Regexp)
         original.gsub(needle, replacement)
       else
