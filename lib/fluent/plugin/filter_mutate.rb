@@ -20,8 +20,8 @@ module Fluent
 
     # Update an existing field with a new value.
     # - If the field does not exist then no action will be taken.
-    # - If the new value contains a placeholder %{}, then the value will be 
-    #   expanded to the related event record field. 
+    # - If the new value contains a placeholder %{}, then the value will be
+    #   expanded to the related event record field.
     # @example
     #   update {
     #     "message": "%{hostname}: new message"
@@ -59,7 +59,7 @@ module Fluent
 
     # Convert a string field by applying a regular expression and replacement.
     # - If the field is not a string, then no action will be taken.
-    # 
+    #
     # The configuration takes an array consisting of 3 elements per field/sub.
     #
     # @example
@@ -84,14 +84,14 @@ module Fluent
     config_param :lowercase,  :array, default: Array.new
 
     # Strip whitespace from field.
-    # @example 
+    # @example
     #   strip [
     #     "field1"
     #   ]
     config_param :strip,      :array, default: Array.new
 
     # Split a field to an array using a separator character
-    # @example 
+    # @example
     #   split {
     #     "field1": ","
     #   }
@@ -111,7 +111,7 @@ module Fluent
     #   }
     config_param :merge,      :hash, default: Hash.new
 
-    # List of all possible mutate actions, in the order that we will apply 
+    # List of all possible mutate actions, in the order that we will apply
     # them. As it stands, this is the order in which Logstash would apply them.
     MUTATE_ACTIONS = %w(
       rename
@@ -149,13 +149,13 @@ module Fluent
 
       @convert.nil? or @convert.each do |field, type|
         if !VALID_CONVERSIONS.include?(type)
-          raise ConfigError, 
+          raise ConfigError,
             "convert #{type} is not one of #{VALID_CONVERSIONS.join(',')}."
         end
       end
 
       @gsub_parsed = []
-      @gsub.nil? or 
+      @gsub.nil? or
       @gsub.each_slice(3) do |field, needle, replacement|
         if [field, needle, replacement].any? {|n| n.nil?}
           raise ConfigError,
@@ -324,8 +324,8 @@ module Fluent
                  when String
                    original.upcase! || original
                  else
-                   @log.error("can't uppercase field", 
-                              field: field, 
+                   @log.error("can't uppercase field",
+                              field: field,
                               value: original)
                    original
                  end
@@ -346,8 +346,8 @@ module Fluent
                  when String
                    original.downcase! || original
                  else
-                   @log.error("can't lowercase field", 
-                              field: field, 
+                   @log.error("can't lowercase field",
+                              field: field,
                               value: original)
                    original
                  end
@@ -363,7 +363,7 @@ module Fluent
         if value.is_a?(String)
           event.set(field, value.split(separator))
         else
-          @loger.error("can't split field", 
+          @log.error("can't split field",
                        field: field,
                        value: value)
         end
@@ -435,9 +435,9 @@ module Fluent
           result = value.map do |v|
             if v.is_a?(String)
               gsub_dynamic_fields(event, v, needle, replacement)
-            else 
-              @log.error('cannot gsub non Strings', 
-                         field: field, 
+            else
+              @log.error('cannot gsub non Strings',
+                         field: field,
                          value: v)
             end
             event.set(field, result)
