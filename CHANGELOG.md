@@ -1,10 +1,10 @@
 # Changelog
 
-v2.0.1
+v0.2.1
 -------------
 * Resolve bug in datetime converter
 
-v2.0.0
+v0.2.0
 -------------
 * Fix MutateEvent initializer bug
 * Add support for event_tag and event_time substitutions %{event_time}
