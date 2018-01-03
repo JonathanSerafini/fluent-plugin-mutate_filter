@@ -1,6 +1,6 @@
 # Fluent::MutateFilter
 
-This gem provides the `mutate` filter for Fluentd which is designed to replicate the way `mutate` works in Logstash as much as possible. 
+This gem provides the `mutate` filter for Fluentd which is designed to replicate the way `mutate` works in Logstash as much as possible.
 
 To be honest, this is a translation of [logstash-filter-mutate](https://github.com/logstash-plugins/logstash-filter-mutate) bordering on copy-paste.
 

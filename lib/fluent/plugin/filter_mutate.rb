@@ -23,9 +23,11 @@ module Fluent
     # - If the field does not exist then no action will be taken.
     # - If the new value contains a placeholder %{}, then the value will be
     #   expanded to the related event record field.
+    # - If the new value contains a placeholder %e{}, then the value will be
+    #   expanded to the relevant environment variable.
     # @example
     #   update {
-    #     "message": "%{hostname}: new message"
+    #     "message": "%e{HOSTNAME}: new message"
     #   }
     config_param :update,     :hash,  default: Hash.new
 
@@ -40,6 +42,8 @@ module Fluent
     # - If the field does not exist, then it will be created.
     # - If the new value contains a placeholder %{}, then the value will be
     #   expanded to the related event record field.
+    # - If the new value contains a placeholder %e{}, then the value will be
+    #   expanded to the relevant environment variable.
     # @example
     #   replace {
     #     "new_message": "a new field"
@@ -254,7 +258,7 @@ module Fluent
       matches = string.scan(ENVIRONMENT_TAG_REGEXP).map{|m| $~}
 
       matches.each do |match|
-        reference_tag = match[0][2..-2]
+        reference_tag = match[0][3..-2]
         reference_value = case reference_tag
                           when "hostname" then Socket.gethostname
                           else ENV[reference_tag]
