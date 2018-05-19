@@ -439,8 +439,8 @@ module Fluent
             next
           end
 
-          if value.start_with?('{') and value.end_with?('}') \
-          or value.start_with?('[') and value.end_with?(']')
+          if (value.start_with?('{') and value.end_with?('}')) \
+          or (value.start_with?('[') and value.end_with?(']'))
             value = JSON.load(value)
             event.set(field, value)
           end
