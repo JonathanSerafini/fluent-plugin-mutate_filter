@@ -4,8 +4,8 @@ require "fluent/plugin/mixin/mutate_event"
 
 module Fluent
   module Plugin
-    class MutateFilter2 < Fluent::Plugin::Filter
-      Fluent::Plugin.register_filter("mutate2", self)
+    class MutateFilter < Fluent::Plugin::Filter
+      Fluent::Plugin.register_filter("mutate", self)
 
       # Treat periods as nested field names
       config_param :expand_nesting, :bool, default: true
@@ -62,6 +62,11 @@ module Fluent
               end
             when "parse"
               data.each do |key, value|
+                if key == "@merge_root"
+                  data[key] = Fluent::Config.bool_value(value)
+                  next
+                end
+
                 unless VALID_PARSERS.include?(value)
                   raise Fluent::ConfigError, "mutate #{type} action " +
                         "received an invalid type for #{key}, should be one " +
@@ -423,6 +428,8 @@ module Fluent
       # Lazily just support json for now
       # @since 1.0.0
       def parse(params, event)
+        merge_root = params.delete("@merge_root")
+
         params.each do |field, parser|
           value = event.get(field)
 
@@ -434,7 +441,12 @@ module Fluent
           if (value.start_with?('{') and value.end_with?('}')) \
           or (value.start_with?('[') and value.end_with?(']'))
             value = JSON.load(value)
-            event.set(field, value)
+
+            if merge_root
+              event.update(value)
+            else
+              event.set(field, value)
+            end
           end
         end
       end

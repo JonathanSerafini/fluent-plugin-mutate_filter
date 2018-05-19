@@ -95,6 +95,8 @@ Merge the value of source\_field, which may be an Array or a Map, into the key's
 
 Parse a key's value from JSON to a object.
 
+Additionally, a `@merge_root` boolean field may be defined to have the resulting object be merge into the root of the record.
+
 ##### `rename <new_name>`
 
 Rename a key to a new key name.
