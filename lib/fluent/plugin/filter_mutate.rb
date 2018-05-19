@@ -4,8 +4,8 @@ require "fluent/plugin/mixin/mutate_event"
 
 module Fluent
   module Plugin
-    class MutateFilter < Fluent::Plugin::Filter
-      Fluent::Plugin.register_filter("mutate", self)
+    class MutateFilter2 < Fluent::Plugin::Filter
+      Fluent::Plugin.register_filter("mutate2", self)
 
       # Treat periods as nested field names
       config_param :expand_nesting, :bool, default: true
@@ -171,31 +171,27 @@ module Fluent
       def expand_references(event, string)
         new_string = ''
 
-        position = 0
-        matches = string.scan(TEMPLATE_TAG_REGEXP).map{|m| $~}
-
-        matches.each do |match|
+        while match = string.match(TEMPLATE_TAG_REGEXP) do
           reference_tag = match[0][2..-2]
           reference_value = case reference_tag
                             when "event_time" then event.event_time.to_s
                             when "event_tag"  then event.event_tag
                             else  event.get(reference_tag.downcase).to_s
                             end
-          if reference_value.nil?
+
+          if reference_value == ""
             @log.error "failed to replace tag", field: reference_tag.downcase
             reference_value = match.to_s
           end
 
           start = match.offset(0).first
-          new_string << string[position..(start-1)] if start > 0
+          new_string << string[0..(start-1)] if start > 0
           new_string << reference_value
-          position = match.offset(0).last
+
+          string = string[match.offset(0).last..-1]
         end
 
-        if position < string.size
-          new_string << string[position..-1]
-        end
-
+        new_string << string
         new_string
       end
 
@@ -205,30 +201,26 @@ module Fluent
       def expand_environment(event, string)
         new_string = ''
 
-        position = 0
-        matches = string.scan(ENVIRONMENT_TAG_REGEXP).map{|m| $~}
-
-        matches.each do |match|
+        while match = string.match(ENVIRONMENT_TAG_REGEXP) do
           reference_tag = match[0][3..-2]
           reference_value = case reference_tag
                             when "hostname" then Socket.gethostname
                             else ENV[reference_tag]
                             end
-          if reference_value.nil?
+
+          if reference_value == ""
             @log.error "failed to replace tag", field: reference_tag
             reference_value = match.to_s
           end
 
           start = match.offset(0).first
-          new_string << string[position..(start-1)] if start > 0
+          new_string << string[0..(start-1)] if start > 0
           new_string << reference_value
-          position = match.offset(0).last
+
+          string = string[match.offset(0).last..-1]
         end
 
-        if position < string.size
-          new_string << string[position..-1]
-        end
-
+        new_string << string
         new_string
       end
 
