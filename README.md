@@ -91,6 +91,10 @@ Lowercase the key's value. If the value is an Array, then apply the filter to al
 
 Merge the value of source\_field, which may be an Array or a Map, into the key's value.
 
+##### `parse json`
+
+Parse a key's value from JSON to a object.
+
 ##### `rename <new_name>`
 
 Rename a key to a new key name.

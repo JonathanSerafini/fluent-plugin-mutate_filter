@@ -60,6 +60,14 @@ module Fluent
                         "of #{VALID_CONVERSIONS.join(', ')}."
                 end
               end
+            when "parse"
+              data.each do |key, value|
+                unless VALID_PARSERS.include?(value)
+                  raise Fluent::ConfigError, "mutate #{type} action " +
+                        "received an invalid type for #{key}, should be one " +
+                        "of #{VALID_PARSERS.join(', ')}."
+                end
+              end
             when "lowercase", "uppercase", "remove", "strip"
               data.each do |key, value|
                 v = Fluent::Config.bool_value(value)
@@ -101,6 +109,9 @@ module Fluent
 
       # Convert valid types
       VALID_CONVERSIONS = %w(string integer float boolean datetime)
+
+      # Parser valid types
+      VALID_PARSERS = %w(json)
 
       # Convert helper method prefix
       CONVERT_PREFIX = "convert_".freeze
@@ -223,8 +234,9 @@ module Fluent
 
       # Remove fields from the event hash
       # @since 0.1.0
-      def remove(event)
-        @remove.each do |field|
+      def remove(params, event)
+        params.each do |field, bool|
+          next unless bool
           event.remove(field)
         end
       end
@@ -304,7 +316,9 @@ module Fluent
       # Convert field values to uppercase in the record hash
       # @since 0.1.0
       def uppercase(params, event)
-        params.each do |field|
+        params.each do |field, bool|
+          next unless bool
+
           original = event.get(field)
           result = case original
                    when Array
@@ -326,7 +340,8 @@ module Fluent
       # Convert field values to lowercase in the record hash
       # @since 0.1.0
       def lowercase(params, event)
-        params.each do |field|
+        params.each do |field, bool|
+          next unless bool
           original = event.get(field)
           result = case original
                    when Array
@@ -374,7 +389,8 @@ module Fluent
       # Strip whitespace surrounding fields in the record hash
       # @since 0.1.0
       def strip(params, event)
-        params.each do |field|
+        params.each do |field, bool|
+          next unless bool
           value = event.get(field)
           case value
           when Array
@@ -407,6 +423,26 @@ module Fluent
               event.set(dest_field, Array(dest_field_value).
                                     concat(Array(added_field_value)))
             end
+          end
+        end
+      end
+
+      # Parse the value of a field
+      # Lazily just support json for now
+      # @since 1.0.0
+      def parse(params, event)
+        params.each do |field, parser|
+          value = event.get(field)
+
+          unless value.is_a?(String)
+            @log.warn("field value cannot be parsed by #{parser}")
+            next
+          end
+
+          if value.start_with?('{') and value.ends_with?('}') \
+          or value.start_with?('[') and value.ends_with?(']')
+            value = JSON.load(value)
+            event.set(field, value)
           end
         end
       end
