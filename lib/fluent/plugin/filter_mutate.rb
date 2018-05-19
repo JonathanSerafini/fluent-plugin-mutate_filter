@@ -62,7 +62,7 @@ module Fluent
               end
             when "parse"
               data.each do |key, value|
-                if key == "@merge_root"
+                if key == "merge_root"
                   data[key] = Fluent::Config.bool_value(value)
                   next
                 end
@@ -428,25 +428,36 @@ module Fluent
       # Lazily just support json for now
       # @since 1.0.0
       def parse(params, event)
-        merge_root = params.delete("@merge_root")
+        merge_root = params.fetch("merge_root", false)
 
         params.each do |field, parser|
+          next if field == "merge_root"
+
           value = event.get(field)
+          parsed = nil
 
           unless value.is_a?(String)
             @log.warn("field value cannot be parsed by #{parser}")
             next
           end
 
-          if (value.start_with?('{') and value.end_with?('}')) \
-          or (value.start_with?('[') and value.end_with?(']'))
-            value = JSON.load(value)
+          value = event.get(field).strip
 
-            if merge_root
-              event.update(value)
-            else
-              event.set(field, value)
+          if value.start_with?('{') and value.end_with?('}')
+            parsed = JSON.load(value)
+          end
+
+          if parsed.nil?
+            next
+          end
+
+          if merge_root
+            parsed.each do |k, v|
+              event.set(k, v)
+              event.delete(field)
             end
+          else
+            event.set(field, parsed)
           end
         end
       end
