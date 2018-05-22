@@ -278,7 +278,7 @@ module Fluent
           when NilClass
             next
           when Hash
-            @log.error("cannot convert hash", field: field, value: original)
+            @log.warn("cannot convert hash", field: field, value: original)
           when Array
             event.set(field, original.map{|v| converter.call(v)})
           else
@@ -307,7 +307,7 @@ module Fluent
       def convert_boolean(value)
         return true if value =~ TRUE_REGEX
         return false if value.empty? || value =~ FALSE_REGEX
-        @log.error("failed to convert to boolean", value: value)
+        @log.warn("failed to convert to boolean", value: value)
       end
 
       # Convert field values to uppercase in the record hash
@@ -325,7 +325,7 @@ module Fluent
                    when String
                      original.upcase! || original
                    else
-                     @log.error("can't uppercase field",
+                     @log.warn("can't uppercase field",
                                 field: field,
                                 value: original)
                      original
@@ -348,7 +348,7 @@ module Fluent
                    when String
                      original.downcase! || original
                    else
-                     @log.error("can't lowercase field",
+                     @log.warn("can't lowercase field",
                                 field: field,
                                 value: original)
                      original
@@ -365,7 +365,7 @@ module Fluent
           if value.is_a?(String)
             event.set(field, value.split(separator))
           else
-            @log.error("can't split field",
+            @log.warn("can't split field",
                          field: field,
                          value: value)
           end
@@ -390,6 +390,8 @@ module Fluent
           next unless bool
           value = event.get(field)
           case value
+          when NilClass
+            next
           when Array
             event.set(field, value.map{|s| s.strip})
           when String
@@ -408,7 +410,7 @@ module Fluent
             added_field_value = event.get(added_field)
 
             if dest_field_value.is_a?(Hash) ^ added_field_value.is_a?(Hash)
-              @log.error('cannot merge an array and hash',
+              @log.warn('cannot merge an array and hash',
                          dest_field: dest_field,
                          added_field: added_field)
               next
@@ -437,7 +439,7 @@ module Fluent
           parsed = nil
 
           unless value.is_a?(String)
-            @log.warn("field value cannot be parsed by #{parser}")
+            @log.warn("field value cannot be parsed by #{parser}") unless value.nil?
             next
           end
 
@@ -476,7 +478,7 @@ module Fluent
               if v.is_a?(String)
                 gsub_dynamic_fields(event, v, pattern, replacement)
               else
-                @log.error('cannot gsub non Strings',
+                @log.warn('cannot gsub non Strings',
                            field: key,
                            value: v)
               end
@@ -485,8 +487,10 @@ module Fluent
           when String
             v = gsub_dynamic_fields(event, value, pattern, replacement)
             event.set(key, v)
+          when NilClass
+            next
           else
-            @log.error('cannot gsub non Strings', field: key, value: value)
+            @log.warn('cannot gsub non Strings', field: key, value: value)
           end
         end
       end
