@@ -1,3 +1,7 @@
+# Abandoned Project
+
+**NOTE**: This project is no longer being maintained.
+
 # fluent-plugin-mutate
 
 [Fluentd](https://fluentd.org/) filter plugin to transform records.
